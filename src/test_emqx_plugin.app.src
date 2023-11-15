@@ -1,0 +1,11 @@
+{application, test_emqx_plugin,
+ [{description, "Another amazing EMQX plugin."},
+  {vsn, "0.1.0"},
+  {modules, []},
+  {registered, [test_emqx_plugin_sup]},
+  {applications, [kernel, stdlib, map_sets]},
+  {mod, {test_emqx_plugin_app, []}},
+  {env, []},
+  {licenses, ["Apache-2.0"]},
+  {maintainers, ["jdavidagudelo <jdaaa2009@gmail.com>"]}
+ ]}.
