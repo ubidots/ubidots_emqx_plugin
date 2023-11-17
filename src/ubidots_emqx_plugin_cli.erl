@@ -1,4 +1,4 @@
--module(test_emqx_plugin_cli).
+-module(ubidots_emqx_plugin_cli).
 
 %% This is an example on how to extend `emqx ctl` with your own commands.
 

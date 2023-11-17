@@ -1,4 +1,4 @@
--module(test_emqx_plugin_sup).
+-module(ubidots_emqx_plugin_sup).
 
 -behaviour(supervisor).
 
