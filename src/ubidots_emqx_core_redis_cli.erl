@@ -18,7 +18,6 @@
 
 -behaviour(ecpool_worker).
 
-
 -export([connect/1, get_values_variables/3]).
 
 %%--------------------------------------------------------------------
@@ -32,7 +31,8 @@ connect(_Env) ->
     Database = maps:get(ubidots_cache_database, Env, 1),
     Password = maps:get(ubidots_cache_password, Env, ""),
     case eredis:start_link(Host, Port, Database, Password, 3000, 5000) of
-        {ok, Pid} -> {ok, Pid};
+        {ok, Pid} ->
+            {ok, Pid};
         {error, Reason = {connection_error, _}} ->
             io:format("[Redis] Can't connect to Redis server: Connection refused."),
             {error, Reason};
@@ -52,14 +52,20 @@ get_variable_key(ValueKind) ->
 
 get_value_by_key(Pool, VariableKey, Type) ->
     case Type of
-        single -> ecpool:with_client(Pool, fun (RedisClient) -> eredis:q(RedisClient, ["GET", VariableKey]) end);
-        cluster -> eredis_cluster:q(Pool, ["GET", VariableKey])
+        single ->
+            ecpool:with_client(Pool, fun(RedisClient) ->
+                eredis:q(RedisClient, ["GET", VariableKey])
+            end);
+        cluster ->
+            eredis_cluster:q(Pool, ["GET", VariableKey])
     end.
 
-get_values_loop_redis(_Pool, _Type, []) -> [];
+get_values_loop_redis(_Pool, _Type, []) ->
+    [];
 get_values_loop_redis(Pool, Type, [ValueKind, Topic, VariableId | RestData]) ->
     VariableKey = string:concat(get_variable_key(ValueKind), binary_to_list(VariableId)),
     {ok, Value} = get_value_by_key(Pool, VariableKey, Type),
     [Topic, Value] ++ get_values_loop_redis(Pool, Type, RestData).
 
-get_values_variables(Pool, Type, VariablesData) -> {ok, get_values_loop_redis(Pool, Type, VariablesData)}.
+get_values_variables(Pool, Type, VariablesData) ->
+    {ok, get_values_loop_redis(Pool, Type, VariablesData)}.

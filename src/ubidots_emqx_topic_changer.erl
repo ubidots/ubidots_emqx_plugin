@@ -6,18 +6,17 @@
 %%% @end
 %%% Created : 06. Aug 2019 4:55 p. m.
 %%%-------------------------------------------------------------------
--module(emqx_topic_changer).
+-module(ubidots_emqx_topic_changer).
 -author("ubidots").
 
 -include_lib("emqx/include/emqx.hrl").
 
-
 %% API
 -export([remove_users_topic/2, add_users_topic/2]).
 
--spec(remove_users_topic(emqx:topic(), emqx_types:message()) -> emqx_types:message()).
+-spec remove_users_topic(emqx:topic(), emqx_types:message()) -> emqx_types:message().
 remove_users_topic(Topic, Msg) ->
-    NewTopic = re:replace(Topic, "/users/[^/]+","", [{return,list}]),
+    NewTopic = re:replace(Topic, "/users/[^/]+", "", [{return, list}]),
     Msg#message{topic = NewTopic}.
 
 add_users_topic(UserName, {Topic, SubOpts}) ->
@@ -25,4 +24,9 @@ add_users_topic(UserName, {Topic, SubOpts}) ->
     End = <<"/">>,
     V2Start = <<"/v2.0/users/">>,
     NewTopic = re:replace(Topic, "^/v1.6/", <<V1Start/binary, UserName/binary, End/binary>>),
-    {erlang:iolist_to_binary(re:replace(NewTopic, "^/v2.0/", <<V2Start/binary, UserName/binary, End/binary>>)), SubOpts}.
+    {
+        erlang:iolist_to_binary(
+            re:replace(NewTopic, "^/v2.0/", <<V2Start/binary, UserName/binary, End/binary>>)
+        ),
+        SubOpts
+    }.

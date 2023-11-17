@@ -30,7 +30,8 @@ get_values_from_topic(Topic, Env, PoolReactor, PoolCore) ->
     Values = get_values_variables(PoolCore, UbidotsRedisType, VariablesData),
     Values.
 
-get_messages([]) -> [];
+get_messages([]) ->
+    [];
 get_messages([Topic, Value | Rest]) ->
     NewMessage = emqx_message:make(Topic, Value),
     [NewMessage | get_messages(Rest)].

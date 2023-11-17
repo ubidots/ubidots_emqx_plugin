@@ -1,11 +1,11 @@
-{application, ubidots_emqx_plugin,
- [{description, "Another amazing EMQX plugin."},
-  {vsn, "0.1.0"},
-  {modules, []},
-  {registered, [ubidots_emqx_plugin_sup]},
-  {applications, [kernel, stdlib, map_sets]},
-  {mod, {ubidots_emqx_plugin_app, []}},
-  {env, []},
-  {licenses, ["Apache-2.0"]},
-  {maintainers, ["ubidots <devel@ubidots.com>"]}
- ]}.
+{application, ubidots_emqx_plugin, [
+    {description, "Another amazing EMQX plugin."},
+    {vsn, "0.1.0"},
+    {modules, []},
+    {registered, [ubidots_emqx_plugin_sup]},
+    {applications, [kernel, stdlib, map_sets]},
+    {mod, {ubidots_emqx_plugin_app, []}},
+    {env, []},
+    {licenses, ["Apache-2.0"]},
+    {maintainers, ["ubidots <devel@ubidots.com>"]}
+]}.

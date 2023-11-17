@@ -4,9 +4,10 @@
 
 -emqx_plugin(?MODULE).
 
--export([ start/2
-        , stop/1
-        ]).
+-export([
+    start/2,
+    stop/1
+]).
 
 start(_StartType, _StartArgs) ->
     {ok, Sup} = ubidots_emqx_plugin_sup:start_link(),
