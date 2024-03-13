@@ -26,6 +26,10 @@ compile: $(REBAR)
 ct: $(REBAR)
 	$(REBAR) as test ct -v
 
+.PHONY: format
+format: $(REBAR)
+	$(REBAR) format
+
 .PHONY: eunit
 eunit: $(REBAR)
 	$(REBAR) as test eunit

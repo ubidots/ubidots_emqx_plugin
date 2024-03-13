@@ -46,10 +46,14 @@ connect(_Env) ->
             {error, Reason}
     end.
 
-get_topic_type(match, match) -> both;
-get_topic_type(match, nomatch) -> value;
-get_topic_type(nomatch, match) -> last_value;
-get_topic_type(nomatch, nomatch) -> none.
+get_topic_type(match, match) ->
+    both;
+get_topic_type(match, nomatch) ->
+    value;
+get_topic_type(nomatch, match) ->
+    last_value;
+get_topic_type(nomatch, nomatch) ->
+    none.
 
 get_mqtt_topic_kind(Topic) ->
     LastValuePattern =
@@ -62,17 +66,25 @@ get_mqtt_topic_kind(Topic) ->
     IsValueTopic = re:run(Topic, ValuePattern, [{capture, all_names}]),
     get_topic_type(IsValueTopic, IsLastValueTopic).
 
-get_variable_label([]) -> "*";
-get_variable_label(["+" | _Rest]) -> "*";
-get_variable_label(["#" | _Rest]) -> "*";
-get_variable_label([VariableLabel | _Rest]) -> VariableLabel.
+get_variable_label([]) ->
+    "*";
+get_variable_label(["+" | _Rest]) ->
+    "*";
+get_variable_label(["#" | _Rest]) ->
+    "*";
+get_variable_label([VariableLabel | _Rest]) ->
+    VariableLabel.
 
-get_device_label("+") -> "*";
-get_device_label("#") -> "*";
-get_device_label(DeviceLabel) -> DeviceLabel.
+get_device_label("+") ->
+    "*";
+get_device_label("#") ->
+    "*";
+get_device_label(DeviceLabel) ->
+    DeviceLabel.
 
 decode_mqtt_topic(Topic) ->
-    [_, Version, _, Token, _, DeviceLabelPart | Rest] = re:split(Topic, "/", [{return, list}]),
+    [_, Version, _, Token, _, DeviceLabelPart | Rest] =
+        re:split(Topic, "/", [{return, list}]),
     VariableLabel = get_variable_label(Rest),
     DeviceLabel = get_device_label(DeviceLabelPart),
     [Version, Token, DeviceLabel, VariableLabel].
@@ -83,9 +95,8 @@ execute_redis_command(Pool, Type, Args) ->
             {ok, Result} = eredis_cluster:q(Pool, Args),
             Result;
         single ->
-            {ok, Result} = ecpool:with_client(Pool, fun(RedisClient) ->
-                eredis:q(RedisClient, Args)
-            end),
+            {ok, Result} =
+                ecpool:with_client(Pool, fun(RedisClient) -> eredis:q(RedisClient, Args) end),
             Result
     end.
 
@@ -113,8 +124,8 @@ get_topics_mqtt_by_topic(last_value, Topic, VariableId) ->
 get_topics_mqtt_by_topic(value, Topic, VariableId) ->
     [atom_to_list(value), Topic, VariableId];
 get_topics_mqtt_by_topic(both, Topic, VariableId) ->
-    get_topics_mqtt_by_topic(last_value, Topic, VariableId) ++
-        get_topics_mqtt_by_topic(value, Topic, VariableId).
+    get_topics_mqtt_by_topic(last_value, Topic, VariableId)
+    ++ get_topics_mqtt_by_topic(value, Topic, VariableId).
 
 get_topics_mqtt(DeviceLabel, VariableLabel, VariableId, TopicKind, Version) ->
     Topic = "/" ++ Version ++ "/devices/" ++ DeviceLabel ++ "/" ++ VariableLabel,
@@ -122,21 +133,30 @@ get_topics_mqtt(DeviceLabel, VariableLabel, VariableId, TopicKind, Version) ->
 
 get_mqtt_topics_variable_label(_DeviceLabel, _VariableId, [], _TopicKind, _Version) ->
     [];
-get_mqtt_topics_variable_label(DeviceLabel, VariableId, [VariableLabel], TopicKind, Version) ->
+get_mqtt_topics_variable_label(DeviceLabel,
+                               VariableId,
+                               [VariableLabel],
+                               TopicKind,
+                               Version) ->
     get_topics_mqtt(DeviceLabel, VariableLabel, VariableId, TopicKind, Version).
 
 get_mqtt_topics_variable_key(VariableKey, VariableId, DeviceLabels, TopicKind, Version) ->
     [_, DeviceLabel | Rest] = re:split(VariableKey, "/", [{return, list}]),
     case lists:member(DeviceLabel, DeviceLabels) of
-        true -> get_mqtt_topics_variable_label(DeviceLabel, VariableId, Rest, TopicKind, Version);
-        false -> []
+        true ->
+            get_mqtt_topics_variable_label(DeviceLabel, VariableId, Rest, TopicKind, Version);
+        false ->
+            []
     end.
 
 get_mqtt_topics_by_hash_set([], _DeviceLabels, _TopicKind, _Version) ->
     [];
-get_mqtt_topics_by_hash_set([VariableKey, VariableId | Rest], DeviceLabels, TopicKind, Version) ->
-    get_mqtt_topics_variable_key(VariableKey, VariableId, DeviceLabels, TopicKind, Version) ++
-        get_mqtt_topics_by_hash_set(Rest, DeviceLabels, TopicKind, Version).
+get_mqtt_topics_by_hash_set([VariableKey, VariableId | Rest],
+                            DeviceLabels,
+                            TopicKind,
+                            Version) ->
+    get_mqtt_topics_variable_key(VariableKey, VariableId, DeviceLabels, TopicKind, Version)
+    ++ get_mqtt_topics_by_hash_set(Rest, DeviceLabels, TopicKind, Version).
 
 get_mqtt_topics_by_device_labels(Pool, Type, DeviceLabels, OwnerId, TopicKind, Version) ->
     ReactorVariablesKey = "reactor_variables/" ++ OwnerId,
@@ -147,46 +167,109 @@ get_device_labels_by_device_ids(_Pool, _Type, []) ->
     [];
 get_device_labels_by_device_ids(Pool, Type, [DeviceId | Rest]) ->
     DeviceHashSetKey = "reactor_device_data/" ++ binary_to_list_validated(DeviceId),
-    DeviceLabel = execute_redis_command(Pool, Type, ["HGET", DeviceHashSetKey, "/device_label"]),
-    [binary_to_list_validated(DeviceLabel)] ++ get_device_labels_by_device_ids(Pool, Type, Rest).
+    DeviceLabel =
+        execute_redis_command(Pool, Type, ["HGET", DeviceHashSetKey, "/device_label"]),
+    [binary_to_list_validated(DeviceLabel)]
+    ++ get_device_labels_by_device_ids(Pool, Type, Rest).
 
 get_device_labels(Pool, Type, Token) ->
     DeviceIdsKey = "reactor_devices_with_permissions/view_value/" ++ Token,
     DeviceIds = execute_redis_command(Pool, Type, ["SMEMBERS", DeviceIdsKey]),
     get_device_labels_by_device_ids(Pool, Type, DeviceIds).
 
-get_mqtt_topics_device_labels_and_variable_label(_Pool, _Type, _CanViewDevice, [], _VariableLabel, _OwnerId, _Token, _TopicKind, _Version) ->
+get_mqtt_topics_device_labels_and_variable_label(_Pool,
+                                                 _Type,
+                                                 _CanViewDevice,
+                                                 [],
+                                                 _VariableLabel,
+                                                 _OwnerId,
+                                                 _Token,
+                                                 _TopicKind,
+                                                 _Version) ->
     [];
-get_mqtt_topics_device_labels_and_variable_label(Pool, Type, CanViewDevice, [DeviceLabel | Rest], VariableLabel, OwnerId, Token, TopicKind, Version) ->
-    get_mqtt_topics_by_label(Pool, Type, CanViewDevice, DeviceLabel, VariableLabel, OwnerId, Token, TopicKind, Version) ++ 
-    get_mqtt_topics_device_labels_and_variable_label(Pool, Type, CanViewDevice, Rest, VariableLabel, OwnerId, Token, TopicKind, Version).
+get_mqtt_topics_device_labels_and_variable_label(Pool,
+                                                 Type,
+                                                 CanViewDevice,
+                                                 [DeviceLabel | Rest],
+                                                 VariableLabel,
+                                                 OwnerId,
+                                                 Token,
+                                                 TopicKind,
+                                                 Version) ->
+    get_mqtt_topics_by_label(Pool,
+                             Type,
+                             CanViewDevice,
+                             DeviceLabel,
+                             VariableLabel,
+                             OwnerId,
+                             Token,
+                             TopicKind,
+                             Version)
+    ++ get_mqtt_topics_device_labels_and_variable_label(Pool,
+                                                        Type,
+                                                        CanViewDevice,
+                                                        Rest,
+                                                        VariableLabel,
+                                                        OwnerId,
+                                                        Token,
+                                                        TopicKind,
+                                                        Version).
 
 get_mqtt_topics_by_label(Pool, Type, "1", "*", "*", OwnerId, Token, TopicKind, Version) ->
     DeviceLabels = get_device_labels(Pool, Type, Token),
     get_mqtt_topics_by_device_labels(Pool, Type, DeviceLabels, OwnerId, TopicKind, Version);
-get_mqtt_topics_by_label(Pool, Type, "1", DeviceLabel, "*", OwnerId, _, TopicKind, Version) ->
+get_mqtt_topics_by_label(Pool,
+                         Type,
+                         "1",
+                         DeviceLabel,
+                         "*",
+                         OwnerId,
+                         _,
+                         TopicKind,
+                         Version) ->
     get_mqtt_topics_by_device_labels(Pool, Type, [DeviceLabel], OwnerId, TopicKind, Version);
-get_mqtt_topics_by_label(Pool, Type, "1", "*", VariableLabel, OwnerId, Token, TopicKind, Version) ->
+get_mqtt_topics_by_label(Pool,
+                         Type,
+                         "1",
+                         "*",
+                         VariableLabel,
+                         OwnerId,
+                         Token,
+                         TopicKind,
+                         Version) ->
     DeviceLabels = get_device_labels(Pool, Type, Token),
-    get_mqtt_topics_device_labels_and_variable_label(Pool, Type, "1", DeviceLabels, VariableLabel, OwnerId, Token, TopicKind, Version);
-get_mqtt_topics_by_label(
-    Pool, Type, "1", DeviceLabel, VariableLabel, OwnerId, _, TopicKind, Version
-) ->
+    get_mqtt_topics_device_labels_and_variable_label(Pool,
+                                                     Type,
+                                                     "1",
+                                                     DeviceLabels,
+                                                     VariableLabel,
+                                                     OwnerId,
+                                                     Token,
+                                                     TopicKind,
+                                                     Version);
+get_mqtt_topics_by_label(Pool,
+                         Type,
+                         "1",
+                         DeviceLabel,
+                         VariableLabel,
+                         OwnerId,
+                         _,
+                         TopicKind,
+                         Version) ->
     VariableIdHashSetKey = "reactor_variables/" ++ OwnerId,
     VariableIdKey = "/" ++ DeviceLabel ++ "/" ++ VariableLabel,
-    VariableId = execute_redis_command(Pool, Type, ["HGET", VariableIdHashSetKey, VariableIdKey]),
+    VariableId =
+        execute_redis_command(Pool, Type, ["HGET", VariableIdHashSetKey, VariableIdKey]),
     get_topics_mqtt(DeviceLabel, VariableLabel, VariableId, TopicKind, Version);
-get_mqtt_topics_by_label(
-    _Pool,
-    _Type,
-    _CanViewDevice,
-    _DeviceLabel,
-    _VariableLabel,
-    _OwnerId,
-    _Token,
-    _TopicKind,
-    _Version
-) ->
+get_mqtt_topics_by_label(_Pool,
+                         _Type,
+                         _CanViewDevice,
+                         _DeviceLabel,
+                         _VariableLabel,
+                         _OwnerId,
+                         _Token,
+                         _TopicKind,
+                         _Version) ->
     [].
 
 get_variables_topic(Pool, Type, Topic) ->
@@ -194,52 +277,40 @@ get_variables_topic(Pool, Type, Topic) ->
     [Version, Token, DeviceLabel, VariableLabel] = decode_mqtt_topic(Topic),
     TokenHashSetKey = "reactor_tokens/" ++ Token,
     OwnerId = execute_redis_command(Pool, Type, ["HGET", TokenHashSetKey, "/owner_id"]),
-    PermissionsType = execute_redis_command(Pool, Type, [
-        "HGET", TokenHashSetKey, "/permissions_type"
-    ]),
-    CanViewDevice = can_view_value_device(
-        Pool,
-        Type,
-        binary_to_list_validated(PermissionsType),
-        binary_to_list_validated(OwnerId),
-        DeviceLabel,
-        Token
-    ),
-    get_mqtt_topics_by_label(
-        Pool,
-        Type,
-        CanViewDevice,
-        DeviceLabel,
-        VariableLabel,
-        binary_to_list_validated(OwnerId),
-        Token,
-        TopicKind,
-        Version
-    ).
+    PermissionsType =
+        execute_redis_command(Pool, Type, ["HGET", TokenHashSetKey, "/permissions_type"]),
+    CanViewDevice =
+        can_view_value_device(Pool,
+                              Type,
+                              binary_to_list_validated(PermissionsType),
+                              binary_to_list_validated(OwnerId),
+                              DeviceLabel,
+                              Token),
+    get_mqtt_topics_by_label(Pool,
+                             Type,
+                             CanViewDevice,
+                             DeviceLabel,
+                             VariableLabel,
+                             binary_to_list_validated(OwnerId),
+                             Token,
+                             TopicKind,
+                             Version).
 
 get_variables_from_topic(Pool, Type, Topic) ->
     Result = {ok, get_variables_topic(Pool, Type, Topic)},
     Result.
 
 get_mqtt_topics_test() ->
-    ["last_value", "/v1.6/devices/d1/v1/lv", "variable_id"] = get_topics_mqtt_by_topic(
-        last_value,
-        "/v1.6/devices/d1/v1",
-        "variable_id"
-    ),
-    ["value", "/v1.6/devices/d1/v1", "variable_id"] = get_topics_mqtt_by_topic(
-        value,
-        "/v1.6/devices/d1/v1",
-        "variable_id"
-    ),
-    [
-        "last_value",
-        "/v1.6/devices/d1/v1/lv",
-        "variable_id",
-        "value",
-        "/v1.6/devices/d1/v1",
-        "variable_id"
-    ] =
+    ["last_value", "/v1.6/devices/d1/v1/lv", "variable_id"] =
+        get_topics_mqtt_by_topic(last_value, "/v1.6/devices/d1/v1", "variable_id"),
+    ["value", "/v1.6/devices/d1/v1", "variable_id"] =
+        get_topics_mqtt_by_topic(value, "/v1.6/devices/d1/v1", "variable_id"),
+    ["last_value",
+     "/v1.6/devices/d1/v1/lv",
+     "variable_id",
+     "value",
+     "/v1.6/devices/d1/v1",
+     "variable_id"] =
         get_topics_mqtt_by_topic(both, "/v1.6/devices/d1/v1", "variable_id").
 
 decode_mqtt_topic_test() ->

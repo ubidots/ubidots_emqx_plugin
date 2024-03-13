@@ -46,16 +46,17 @@ connect(_Env) ->
 
 get_variable_key(ValueKind) ->
     case ValueKind of
-        "value" -> "last_value_variables_json:";
-        "last_value" -> "last_value_variables_string:"
+        "value" ->
+            "last_value_variables_json:";
+        "last_value" ->
+            "last_value_variables_string:"
     end.
 
 get_value_by_key(Pool, VariableKey, Type) ->
     case Type of
         single ->
-            ecpool:with_client(Pool, fun(RedisClient) ->
-                eredis:q(RedisClient, ["GET", VariableKey])
-            end);
+            ecpool:with_client(Pool,
+                               fun(RedisClient) -> eredis:q(RedisClient, ["GET", VariableKey]) end);
         cluster ->
             eredis_cluster:q(Pool, ["GET", VariableKey])
     end.
