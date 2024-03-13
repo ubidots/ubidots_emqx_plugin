@@ -62,6 +62,8 @@ get_value_by_key(Pool, VariableKey, Type) ->
 
 get_values_loop_redis(_Pool, _Type, []) ->
     [];
+get_values_loop_redis(Pool, Type, [_ValueKind, _Topic, undefined | RestData]) ->
+    get_values_loop_redis(Pool, Type, RestData);
 get_values_loop_redis(Pool, Type, [ValueKind, Topic, VariableId | RestData]) ->
     VariableKey = string:concat(get_variable_key(ValueKind), binary_to_list(VariableId)),
     {ok, Value} = get_value_by_key(Pool, VariableKey, Type),
