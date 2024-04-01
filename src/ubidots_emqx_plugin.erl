@@ -4,7 +4,6 @@
 %% no need for this include if we call emqx_message:to_map/1 to convert it to a map
 -include_lib("emqx/include/emqx.hrl").
 -include_lib("emqx/include/emqx_hooks.hrl").
--include_lib("hocon/include/hoconsc.hrl").
 %% for logging
 -include_lib("emqx/include/logger.hrl").
 
@@ -15,17 +14,16 @@
 %% Client Lifecycle Hooks
 -export([on_client_subscribe/4, on_client_unsubscribe/4]).
 %% Session Lifecycle Hooks
--export([on_session_subscribed/5]).
+-export([on_session_subscribed/4]).
 %% Message Pubsub Hooks
 -export([on_message_delivered/3]).
 
 %% Called when the plugin application start
 load(Env) ->
     ubidots_emqx_retainer_ecpool:start_pools(?POOL_REACTOR, ?POOL_CORE, Env),
-    Config = #{pool_reactor => ?POOL_REACTOR, pool_core => ?POOL_CORE},
     hook('client.subscribe', {?MODULE, on_client_subscribe, [Env]}),
     hook('client.unsubscribe', {?MODULE, on_client_unsubscribe, [Env]}),
-    hook('session.subscribed', {?MODULE, on_session_subscribed, [Env, Config]}),
+    hook('session.subscribed', {?MODULE, on_session_subscribed, [Env]}),
     hook('message.delivered', {?MODULE, on_message_delivered, [Env]}).
 
 %%--------------------------------------------------------------------
@@ -52,16 +50,11 @@ on_client_unsubscribe(#{username := UserName}, _Properties, TopicFilters, _Env) 
 %% Session Lifecycle Hooks
 %%--------------------------------------------------------------------
 
-on_session_subscribed(_, _, #{share := ShareName}, _Env, _Config)
-    when ShareName =/= undefined ->
+on_session_subscribed(_, _, #{share := ShareName}, _Env) when ShareName =/= undefined ->
     ok;
-on_session_subscribed(_, Topic, #{rh := Rh, is_new := IsNew}, Env, Config) ->
-    case Rh =:= 0 orelse Rh =:= 1 andalso IsNew of
-        true ->
-            emqx_pool:async_submit(fun dispatch/4, [self(), Topic, Env, Config]);
-        _ ->
-            ok
-    end.
+on_session_subscribed(_, Topic, _Message, Env) ->
+    Config = #{pool_reactor => ?POOL_REACTOR, pool_core => ?POOL_CORE},
+    emqx_pool:async_submit(fun dispatch/4, [self(), Topic, Env, Config]).
 
 dispatch(Pid, Topic, _Env, #{pool_reactor := PoolReactor, pool_core := PoolCore}) ->
     EnvVariables = ubidots_emqx_retainer_settings:get_settings(),
